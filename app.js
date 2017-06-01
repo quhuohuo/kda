@@ -22,7 +22,7 @@ var question = require('./routes/question');
 var userinfo = require('./routes/userinfo');
 var search = require('./routes/search');
 var sassMiddleware = require('node-sass-middleware');
-var api = require('/routes/api');
+var api = require('./routes/api');
 
 var app = express();
 app.use(session({
