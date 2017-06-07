@@ -2,6 +2,8 @@ var express = require('express');
 var router = express.Router();
 var dbmodel = require('../collections');
 var redis = require('../redis');
+const moment= require('moment');
+var tools = require('./tools');
 
 // 所有问题详情
 router.route('/')
@@ -159,67 +161,67 @@ router.route('/questionid/:id')
 // 保存新问题
 router.route('/savequestion')
       .put(function(req, res) {
-        if(!req.session.user){
-          res.json({state:300});
-          return;
-        }
-        var id = req.session.user._id;
-        var question = {
-          title:req.body.title,
-          type:req.body.type,
-          content:req.body.editorHtml,
-          author:id,
-          answerList:[],
-          charge:false,
-          validTime:0,
-          money:0,
-          createTime:moment().format('YYYY-MM-DD HH:mm:ss'),
-          pageviews:0
-        };
-        if(req.body.pay=='true'){
-          question.charge = true;
-          question.validTime = Number(req.body.time)*3600+Math.floor(Number(moment().format('x'))/1000);
-          question.money = req.body.count;
-        }
-        if(typeof req.body.type=='string'){
-          question.type = [req.body.type];
-        }
-        redis.saveNewQuestion(question, (err, user)=>{
-          if(err){
-            console.error(err);
-            res.json({state:400});
-          }else{
-            req.session.user.balance = user.balance - question.money;
-            res.json({state:200});
+        if(typeof(req.session.user) !== 'undefined' && !tools.isEmptyObject(req.session.user)) {
+          var id = req.session.user._id;
+          var question = {
+            title:req.body.title,
+            type:req.body.type,
+            content:req.body.editorHtml,
+            author:id,
+            answerList:[],
+            charge:false,
+            validTime:0,
+            money:0,
+            createTime:moment().format('YYYY-MM-DD HH:mm:ss'),
+            pageviews:0
+          };
+          if(req.body.pay=='true'){
+            question.charge = true;
+            question.validTime = Number(req.body.time)*3600+Math.floor(Number(moment().format('x'))/1000);
+            question.money = req.body.count;
           }
-        });
+          if(typeof req.body.type=='string'){
+            question.type = [req.body.type];
+          }
+          redis.saveNewQuestion(question, (err, user)=>{
+            if(err){
+              console.error(err);
+              res.json({state:400});
+            }else{
+              req.session.user.balance = user.balance - question.money;
+              res.json({state:200});
+            }
+          });
+        } else {
+          console.log('请登录');
+        }
 
       })
 
 // 保存新的评论
 router.route('/saveNewAnswer')
       .put(function(req, res) {
-        if(!req.session.user){
-          res.json({state:300});
-          return;
+        if(typeof(req.session.user) !== 'undefined' && !tools.isEmptyObject(req.session.user)){
+          var answer = {
+            uid: req.session.user._id,
+            qid: req.body.questionid,
+            answer: {
+              question: req.body.questionid,
+              author: req.body.user._id,
+              Content: req.body.content,
+              answerTime: moment().format('YYYY-MM-DD HH:mm:ss')
+            }
+          };
+          redis.saveNewAnswer(answer, (err, data)=>{
+            if(err){
+              console.error(err);
+              res.json({state:400});
+            } else {
+              res.json({state:200});
+            }
+          })
+        } else {
+          console.log("请登录");
         }
-        var answer = {
-          uid: req.session.user._id,
-          qid: req.body.questionid,
-          answer: {
-            question: req.body.questionid,
-            author: req.body.user._id,
-            Content: req.body.content,
-            answerTime: moment().format('YYYY-MM-DD HH:mm:ss')
-          }
-        };
-        redis.saveNewAnswer(answer, (err, data)=>{
-          if(err){
-            console.error(err);
-            res.json({state:400});
-          } else {
-            res.json({state:200});
-          }
-        })
       })
 module.exports = router;
